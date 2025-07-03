@@ -1,8 +1,14 @@
-export function add(a: number, b: number): number {
-  return a + b;
-}
+import { Application } from 'https://deno.land/x/oak/mod.ts';
 
-// Learn more at https://docs.deno.com/runtime/manual/examples/module_metadata#concepts
-if (import.meta.main) {
-  console.log("Add 2 + 3 =", add(2, 3));
-}
+const port = 8080;
+const app = new Application();
+
+app.use((ctx) => {
+  ctx.response.body = 'Hello Deno';
+});
+
+app.addEventListener('listen', () => {
+  console.log(`Listening on port ${port}`);
+});
+
+await app.listen({ port });
