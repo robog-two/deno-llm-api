@@ -1,4 +1,4 @@
-import { Hono, ValidationTargets } from "@hono/hono";
+import { Hono } from "@hono/hono";
 import { cors } from "@hono/hono/cors";
 import { secureHeaders } from "@hono/hono/secure-headers";
 import { logger } from "@hono/hono/logger";
@@ -125,7 +125,8 @@ app.post("/respond", validateWith(completionSchema), async (c) => {
   try {
     return c.json((await ollamaResult.clone().json()).message);
   } catch (_) {
-    return c.text(await ollamaResult.text());
+    console.log(await ollamaResult.text());
+    return c.text("The LLM was unable to process your request.", 500);
   }
 });
 
