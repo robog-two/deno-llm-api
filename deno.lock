@@ -1,12 +1,16 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@badrap/valita@~0.4.5": "0.4.5",
     "jsr:@hono/hono@^4.8.4": "4.8.4",
     "jsr:@std/assert@1": "1.0.13",
     "jsr:@std/internal@^1.0.6": "1.0.9",
     "npm:@types/node@*": "22.15.15"
   },
   "jsr": {
+    "@badrap/valita@0.4.5": {
+      "integrity": "3185a5261c998fe70dc642755755b9d040382cca564cfb1f9730bbd03a4161fc"
+    },
     "@hono/hono@4.8.4": {
       "integrity": "dabc0ea1185040fc1e89abfe29906d9e3dd425a4c40f903f9ead78c48917da06"
     },
@@ -33,6 +37,7 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@badrap/valita@~0.4.5",
       "jsr:@hono/hono@^4.8.4",
       "jsr:@std/assert@1"
     ]
