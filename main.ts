@@ -12,7 +12,7 @@ const docsUrl = "https://robog.net/docs/slm.robog.net/";
 
 // Basic LLM configuration variables
 const endpointURL = Deno.env.get("OLLAMA_ENDPOINT");
-const model = Deno.env.get("OLLAMA_MODEL");
+const model = "qwen3:0.6b";
 
 const systemPrompt = `
 # Guidelines for the assistant (MUST BE FOLLOWED AT ALL TIMES)
@@ -112,6 +112,7 @@ app.post("/respond", validateWith(completionSchema), async (c) => {
     body: JSON.stringify({
       model,
       stream: false,
+      think: false,
       messages: inputJson,
     }), // redundant? need to validate I suppose
   });
