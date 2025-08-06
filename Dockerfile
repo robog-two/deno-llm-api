@@ -10,4 +10,4 @@ COPY . .
 # Compile the main app
 RUN deno cache main.ts
 
-CMD ["run", "--allow-env", "--allow-net", "main.ts"]
+CMD ["task", "run"]
