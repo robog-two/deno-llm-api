@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run --allow-net --env --allow-env --watch main.ts"
+    "dev": "deno run --allow-net --env --allow-env --allow-read --watch main.ts"
   },
   "imports": {
     "@badrap/valita": "jsr:@badrap/valita@^0.4.5",
