@@ -32,9 +32,9 @@ const modelsConf: LangModelConfig = {
     think: true,
   },
   code: {
-    name: Deno.env.get("OLLAMA_MODEL_CODE") ?? "qwen2.5-coder:3b",
+    name: Deno.env.get("OLLAMA_MODEL_CODE") ?? "qwen3:1.7b",
     prompt: p("code"),
-    think: false,
+    think: true,
   },
 };
 
