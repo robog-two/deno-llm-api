@@ -8,7 +8,7 @@ import { Readability } from "@mozilla/readability";
 The search feature needs to do the following:
 1) Turn a question into a search query (in this case three queries)
 2) Filter out known malicious or bad websites such as: porn, spam, known misinformation/hate speech (this uses UBO)
-3) Extract text from websites that we are able to (uses Mozilla's Readable.js)
+3) Extract text from websites that we are able to (uses Mozilla's Readability.js)
 4) Create embeddings for chunks of that text
 5) Return snippets (alongside the URL they originate from) of text related to the query with a vector search
 
@@ -27,6 +27,26 @@ export type SearchResult = {
   description: string;
 };
 
+export type Source = {
+  fullText: string;
+  link: URL;
+};
+
+export type SourceChunk = {
+  text: string;
+  link: URL;
+};
+
+export type EmbedVector = number[];
+
+function sqrVecDistance(a: EmbedVector, b: EmbedVector) {
+  let totalDistance = 0;
+  for (let i = 0; i < a.length && i < b.length; i++) {
+    totalDistance += Math.pow(a[i] - b[i], 2);
+  }
+  return totalDistance;
+}
+
 // Bad website blocking and filtering code
 const snfe = await StaticNetFilteringEngine.create();
 await snfe.useLists([
@@ -39,19 +59,8 @@ await snfe.useLists([
     raw,
   })),
 ]);
-function isAllowed(url: string): boolean {
-  return snfe.matchRequest({
-    originURL: "https://slm.robog.net/",
-    type: "image",
-    url,
-  }) == 0; // Returns the number of times this matched the filter lists. So, 0 means it's not in there a.k.a. good to go
-}
 
-// Simple inline logging for debugging purposes
-function l<T>(x: T): T {
-  console.log(x);
-  return x;
-}
+// Simple inline logging for debugging purposes (only used within this file)
 
 // This web scraping function was written with generative AI.
 async function internetSearch(query: string): Promise<Array<SearchResult>> {
@@ -89,141 +98,121 @@ async function internetSearch(query: string): Promise<Array<SearchResult>> {
   return results;
 }
 
-async function triSearch(
-  a: string,
-  b: string,
-  c: string,
-): Promise<Array<string>> {
-  const allResults = await Promise.all([
-    internetSearch(a),
-    internetSearch(b),
-    internetSearch(c),
-  ]);
-  const finalLinks = new Set<string | undefined>();
-
-  for (let i = 0; finalLinks.size < 15; i++) {
-    finalLinks.add(allResults[0][i].link.href);
-    finalLinks.add(allResults[1][i].link.href);
-    finalLinks.add(allResults[2][i].link.href);
-  }
-  finalLinks.delete(undefined); // some standard JS shenanigans to avoid needing bounds checks
-  return Array.from(finalLinks.values()) as string[];
-}
+// Helper function that performs three searches simultaneously
 
 app.post("/", async (c) => {
-  const rephraseModel = modelsConf.special.get("searchRephrase") ??
-    modelsConf.large;
-  const chooseModel = modelsConf.special.get("searchChoose") ??
-    modelsConf.large;
   // Write a program and deliver it in chunks
-  const searchQuery = (await c.req.json()).searchQuery;
+  const requestJSON = await c.req.json();
+  const searchQuery = requestJSON.searchQuery;
+  const question = requestJSON.question;
 
-  const threeQueries = (l(
-    await (await fetch(
-      Deno.env.get("OLLAMA_ENDPOINT") + "/api/chat",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: rephraseModel.name,
-          think: rephraseModel.think,
-          stream: false,
-          messages: [
-            {
-              role: "system",
-              content: rephraseModel.prompt,
-            },
-            {
-              role: "user",
-              content: searchQuery,
-            },
-          ],
-        }),
+  // Request embedding for the query, but we will use it later so don't await
+  const queryEmbeddingPromise = fetch(
+    Deno.env.get("OLLAMA_ENDPOINT") + "/api/embed",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    )).json(),
-  ).message.content as string) // Get the LLM's response
-    .split("\n").filter((line) => line.match(/[ \t]*?[0-9]+?\./)) // filter every line that is a list like 1. or 2.
-    .slice(-3); // take the last three items as these are the searches that the LLM recommends we perform
+      body: JSON.stringify({
+        model: modelsConf.embedding.name,
+        input: question,
+      }),
+    },
+  ).then((res) => res.json());
 
-  const listOfSources = l(
-    await triSearch(
-      l(threeQueries[0]),
-      l(threeQueries[1]),
-      l(threeQueries[2]),
-    ),
-  ).filter(isAllowed);
+  const listOfSources = await internetSearch(searchQuery);
 
-  const allSourcesText = await Promise.all( // Kind of unbeleivable this just works! Shoutout to mozilla for making a brilliant article parser
-    listOfSources.map((sourceLink): Promise<string> => {
+  // Convert links into text
+  const allSourcesText = (await Promise.all( // Kind of unbeleivable this just works! Shoutout to mozilla for making a brilliant article parser
+    listOfSources.map((result): Promise<Source | undefined> => {
       return (async () => {
         try {
-          const html = await (await fetch(sourceLink, {
+          const html = await (await fetch(result.link, {
             headers: { "User-Agent": userAgent },
           })).text();
           const article = new Readability(
             new DOMParser().parseFromString(html, "text/html"),
           ).parse();
-          return article?.textContent ?? "Article was unable to be processed.";
-        } catch (e) {
-          return e?.toString() ?? "Error occured while processing article";
+
+          if (article && article.textContent) {
+            return {
+              fullText: article.textContent.replaceAll(/\n\n+/g, "\n\n"), //filter out long newlines which sometimes occur
+              link: result.link,
+            };
+          }
+          return undefined;
+        } catch (_) {
+          return undefined;
         }
       })(); // IIFE generates a promise so we can do Promise.all
     }),
-  );
+  )).filter((it) => it != undefined) as Source[]; // remove undefined
 
-  const bestSources = (l(
-    await (await fetch(
-      Deno.env.get("OLLAMA_ENDPOINT") + "/api/chat",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: chooseModel.name,
-          think: chooseModel.think,
-          stream: false,
-          messages: [
-            {
-              role: "system",
-              content: chooseModel.prompt,
-            },
-            {
-              role: "user",
-              content: l(
-                listOfSources.map((source, i) => `${i + 1}. ${source}`).join(
-                  "\n",
-                ) +
-                  `\nChoose the best 3 sources that answer the question: "${searchQuery}"`,
-              ),
-            },
-          ],
-        }),
-      },
-    )).json(),
-  ).message.content as string) // Get the LLM's response
-    .split("\n").filter((line) => line.match(/[ \t]*?[0-9]+?\./)) // filter every line that is a list like 1. or 2.
-    .map((line) =>
-      line.replaceAll(/\*\*/g, "").replaceAll(/[ \t]*?[0-9]+?\./g, "")
-        .replaceAll(
-          " ",
-          "",
-        )
-    ) // remove bold formatting, numbering, and spaces (they should be %20 in urls from the search engine)
-    .map((line) => {
-      try {
-        return new URL(line);
-      } catch (_) {
-        return undefined;
-      }
-    }).filter((url) => url && ["http:", "https:"].includes(url.protocol))
-    .slice(-3); // Take the last three URL's
+  // Convert text into chunks
+  const sourceChunks: SourceChunk[] = [];
+  allSourcesText.forEach((source) => {
+    const { link, fullText } = source;
+    const characters = 600;
+    const overlap = 120;
 
-  return c.json({
-    sources: bestSources,
+    /*
+    Assuming we are chunking abcdefghi and overlap is 1 and characters is 2:
+    Chunk 1: abc
+    Chunk 2: cdef
+    Chunk 3: fghi
+    */
+    sourceChunks.push({ text: fullText.slice(0, characters + overlap), link });
+    for (
+      let i = characters + overlap;
+      i + characters + overlap < fullText.length;
+      i += characters + overlap
+    ) {
+      sourceChunks.push({
+        text: fullText.slice(i - overlap, i) +
+          fullText.slice(i, i + characters + overlap),
+        link,
+      });
+    }
   });
+
+  const queryEmbedding = (await queryEmbeddingPromise)
+    .embeddings[0] as EmbedVector;
+
+  /*
+  Take all of the chunks, find embeddings for them, measure the distance between that and the query,
+  then sort the chunks by that distance, and take the top three most similar chunks.
+  */
+  const topThreeChunks = (await Promise.all(sourceChunks.map((chunk) =>
+    (async () => {
+      const embedding = await fetch(
+        Deno.env.get("OLLAMA_ENDPOINT") + "/api/embed",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: modelsConf.embedding.name,
+            input: chunk.text,
+          }),
+        },
+      ).then((res) =>
+        res.json()
+      ).then((resJSON) => resJSON.embeddings[0] as EmbedVector);
+
+      const distance = sqrVecDistance(queryEmbedding, embedding);
+      console.log(distance, chunk.link.host);
+      return {
+        chunk,
+        distance,
+      };
+    })()
+  ))).toSorted((a, b) =>
+    a.distance - b.distance
+  ).map((packed) => packed.chunk).slice(0, 10);
+
+  return c.json(topThreeChunks);
 });
 
 export default app;

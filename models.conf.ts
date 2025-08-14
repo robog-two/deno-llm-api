@@ -6,6 +6,7 @@ export type LangModelConfig = {
   small: LangModel;
   large: LangModel;
   code: LangModel;
+  embedding: { name: string };
   special: Map<string, LangModel>;
 };
 
@@ -41,12 +42,10 @@ const modelsConf: LangModelConfig = {
     prompt: p("code"),
     think: true,
   },
+  embedding: {
+    name: "granite-embedding:30m",
+  },
   special: new Map(Object.entries({
-    searchChoose: { // Chooses the best 3 sources from a list of links
-      name: "gemma3n:e4b",
-      prompt: p("search_choose"),
-      think: false,
-    },
     searchRephrase: { // Rephrases one search into three different searches
       name: defaultLarge,
       prompt: p("search_rephrase"),
