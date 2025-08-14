@@ -6,7 +6,9 @@
   "imports": {
     "@b-fuze/deno-dom": "jsr:@b-fuze/deno-dom@^0.1.56",
     "@badrap/valita": "jsr:@badrap/valita@^0.4.5",
+    "@gorhill/ubo-core": "npm:@gorhill/ubo-core@^0.1.30",
     "@hono/hono": "jsr:@hono/hono@^4.8.4",
+    "@mozilla/readability": "npm:@mozilla/readability@^0.6.0",
     "@std/assert": "jsr:@std/assert@1"
   }
 }

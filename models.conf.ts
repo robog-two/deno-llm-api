@@ -6,6 +6,7 @@ export type LangModelConfig = {
   small: LangModel;
   large: LangModel;
   code: LangModel;
+  special: Map<string, LangModel>;
 };
 
 export type LangModel = {
@@ -20,22 +21,38 @@ function p(prompt: string): string {
   );
 }
 
+const defaultSmall = Deno.env.get("OLLAMA_MODEL_SMALL") ?? "qwen3:0.6b";
+const defaultLarge = Deno.env.get("OLLAMA_MODEL_BIG") ?? "qwen3:1.7b";
+const defaultCode = Deno.env.get("OLLAMA_MODEL_CODE") ?? "qwen3:1.7b";
+
 const modelsConf: LangModelConfig = {
   small: {
-    name: Deno.env.get("OLLAMA_MODEL_SMALL") ?? "qwen3:0.6b",
+    name: defaultSmall,
     prompt: p("agent"),
     think: false,
   },
   large: {
-    name: Deno.env.get("OLLAMA_MODEL_BIG") ?? "qwen3:1.7b",
+    name: defaultLarge,
     prompt: p("agent"),
     think: true,
   },
   code: {
-    name: Deno.env.get("OLLAMA_MODEL_CODE") ?? "qwen3:1.7b",
+    name: defaultCode,
     prompt: p("code"),
     think: true,
   },
+  special: new Map(Object.entries({
+    searchChoose: { // Chooses the best 3 sources from a list of links
+      name: "gemma3n:e4b",
+      prompt: p("search_choose"),
+      think: false,
+    },
+    searchRephrase: { // Rephrases one search into three different searches
+      name: defaultLarge,
+      prompt: p("search_rephrase"),
+      think: false,
+    },
+  })),
 };
 
 export default modelsConf;

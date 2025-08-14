@@ -13,6 +13,8 @@
     "jsr:@std/internal@^1.0.9": "1.0.10",
     "jsr:@std/path@1": "1.1.1",
     "jsr:@std/path@^1.1.1": "1.1.1",
+    "npm:@gorhill/ubo-core@~0.1.30": "0.1.30",
+    "npm:@mozilla/readability@0.6": "0.6.0",
     "npm:@types/node@*": "22.15.15"
   },
   "jsr": {
@@ -82,6 +84,12 @@
     }
   },
   "npm": {
+    "@gorhill/ubo-core@0.1.30": {
+      "integrity": "sha512-0QtDqjP7r7bQbiLO67ojEYkoaOyWeYy6heCOfkpygUfpYf/+iRfgM+ceCXSOsPXpNLgZg3aKqlD4LTxBw6WjNw=="
+    },
+    "@mozilla/readability@0.6.0": {
+      "integrity": "sha512-juG5VWh4qAivzTAeMzvY9xs9HY5rAcr2E4I7tiSSCokRFi7XIZCAu92ZkSTsIj1OPceCifL3cpfteP3pDT9/QQ=="
+    },
     "@types/node@22.15.15": {
       "integrity": "sha512-R5muMcZob3/Jjchn5LcO8jdKwSCbzqmPB6ruBxMcf9kbxtniZHP327s6C37iOfuw8mbKK3cAQa7sEl7afLrQ8A==",
       "dependencies": [
@@ -97,7 +105,9 @@
       "jsr:@b-fuze/deno-dom@~0.1.56",
       "jsr:@badrap/valita@~0.4.5",
       "jsr:@hono/hono@^4.8.4",
-      "jsr:@std/assert@1"
+      "jsr:@std/assert@1",
+      "npm:@gorhill/ubo-core@~0.1.30",
+      "npm:@mozilla/readability@0.6"
     ]
   }
 }
