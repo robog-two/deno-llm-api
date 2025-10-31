@@ -10,10 +10,10 @@ app.post("/", async (c) => {
 
   return streamText(c, async (stream) => {
     const abortController = new AbortController();
-    // stream.onAbort(() => {
-    //   // Cancel the request to Ollama if the client disconnects
-    //   abortController.abort();
-    // });
+    stream.onAbort(() => {
+      // Cancel the request to Ollama if the client disconnects
+      abortController.abort();
+    });
 
     const response = await fetch(
       Deno.env.get("OLLAMA_ENDPOINT") + "/api/chat",

@@ -6,6 +6,8 @@ export type LangModelConfig = {
   small: LangModel;
   large: LangModel;
   code: LangModel;
+  embedding: { name: string };
+  special: Map<string, LangModel>;
 };
 
 export type LangModel = {
@@ -20,22 +22,36 @@ function p(prompt: string): string {
   );
 }
 
+const defaultSmall = Deno.env.get("OLLAMA_MODEL_SMALL") ?? "gemma3n:e2b";
+const defaultLarge = Deno.env.get("OLLAMA_MODEL_BIG") ?? "gemma3n:e2b";
+const defaultCode = Deno.env.get("OLLAMA_MODEL_CODE") ?? "gemma3n:e2b";
+
 const modelsConf: LangModelConfig = {
   small: {
-    name: Deno.env.get("OLLAMA_MODEL_SMALL") ?? "qwen3:0.6b",
+    name: defaultSmall,
     prompt: p("agent"),
     think: false,
   },
   large: {
-    name: Deno.env.get("OLLAMA_MODEL_BIG") ?? "qwen3:1.7b",
+    name: defaultLarge,
     prompt: p("agent"),
     think: true,
   },
   code: {
-    name: Deno.env.get("OLLAMA_MODEL_CODE") ?? "qwen2.5-coder:3b",
+    name: defaultCode,
     prompt: p("code"),
-    think: false,
+    think: true,
   },
+  embedding: {
+    name: "granite-embedding:30m",
+  },
+  special: new Map(Object.entries({
+    searchRephrase: { // Rephrases one search into three different searches
+      name: defaultLarge,
+      prompt: p("search_rephrase"),
+      think: false,
+    },
+  })),
 };
 
 export default modelsConf;
