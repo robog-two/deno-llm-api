@@ -3,6 +3,7 @@ import { Hono } from "@hono/hono";
 import modelsConf from "../models.conf.ts";
 import { StaticNetFilteringEngine } from "@gorhill/ubo-core";
 import { Readability } from "@mozilla/readability";
+import { removeStopwords } from "npm:stopword";
 
 /*
 The search feature needs to do the following:
@@ -50,14 +51,16 @@ function sqrVecDistance(a: EmbedVector, b: EmbedVector) {
 // Bad website blocking and filtering code
 const snfe = await StaticNetFilteringEngine.create();
 await snfe.useLists([
-  fetch("https://big.oisd.nl").then((r) => r.text()).then((raw) => ({
-    name: "oisd-big",
-    raw,
-  })),
-  fetch("https://nsfw.oisd.nl").then((r) => r.text()).then((raw) => ({
-    name: "oisd-nsfw",
-    raw,
-  })),
+  fetch("https://web.archive.org/web/20250327180212if_/https://big.oisd.nl/")
+    .then((r) => r.text()).then((raw) => ({
+      name: "oisd-big",
+      raw,
+    })),
+  fetch("https://web.archive.org/web/20250327180212if_/https://nsfw.oisd.nl/")
+    .then((r) => r.text()).then((raw) => ({
+      name: "oisd-nsfw",
+      raw,
+    })),
 ]);
 
 // Simple inline logging for debugging purposes (only used within this file)
@@ -77,7 +80,7 @@ async function internetSearch(query: string): Promise<Array<SearchResult>> {
   const html = await response.text();
   const anomalyRegex = /class\s*=\s*"[^"]*\banomaly\w*[^"]*"/i;
   if (anomalyRegex.test(html)) {
-    throw new Error("Anomaly class detected in the response HTML.");
+    throw new Error("Search has been blocked/rate limited.");
   }
   const doc = new DOMParser().parseFromString(html, "text/html");
   if (!doc) {
@@ -103,8 +106,7 @@ async function internetSearch(query: string): Promise<Array<SearchResult>> {
 app.post("/", async (c) => {
   // Write a program and deliver it in chunks
   const requestJSON = await c.req.json();
-  const searchQuery = requestJSON.searchQuery;
-  const question = requestJSON.question;
+  const question: string = requestJSON.question;
 
   // Request embedding for the query, but we will use it later so don't await
   const queryEmbeddingPromise = fetch(
@@ -121,7 +123,10 @@ app.post("/", async (c) => {
     },
   ).then((res) => res.json());
 
-  const listOfSources = await internetSearch(searchQuery);
+  // Turn the natural language question into keywords
+  const listOfSources = await internetSearch(
+    removeStopwords(question.split(" ")).join(" "),
+  );
 
   // Convert links into text
   const allSourcesText = (await Promise.all( // Kind of unbeleivable this just works! Shoutout to mozilla for making a brilliant article parser
@@ -147,7 +152,11 @@ app.post("/", async (c) => {
         }
       })(); // IIFE generates a promise so we can do Promise.all
     }),
-  )).filter((it) => it != undefined) as Source[]; // remove undefined
+  ))
+    // remove undefined
+    .filter((it) => it != undefined)
+    // block sources that will put unecessary stress on embedding server with little payoff (like a textbook, for example)
+    .filter((it) => it.fullText.length < 25000) as Source[];
 
   // Convert text into chunks
   const sourceChunks: SourceChunk[] = [];
@@ -206,11 +215,12 @@ app.post("/", async (c) => {
       return {
         chunk,
         distance,
+        source: chunk.link,
       };
     })()
   ))).toSorted((a, b) =>
     a.distance - b.distance
-  ).map((packed) => packed.chunk).slice(0, 10);
+  ).map((packed) => packed.chunk).slice(0, 5);
 
   return c.json(topThreeChunks);
 });

@@ -22,9 +22,9 @@ function p(prompt: string): string {
   );
 }
 
-const defaultSmall = Deno.env.get("OLLAMA_MODEL_SMALL") ?? "qwen3:0.6b";
-const defaultLarge = Deno.env.get("OLLAMA_MODEL_BIG") ?? "qwen3:1.7b";
-const defaultCode = Deno.env.get("OLLAMA_MODEL_CODE") ?? "qwen3:1.7b";
+const defaultSmall = Deno.env.get("OLLAMA_MODEL_SMALL") ?? "gemma3n:e2b";
+const defaultLarge = Deno.env.get("OLLAMA_MODEL_BIG") ?? "gemma3n:e2b";
+const defaultCode = Deno.env.get("OLLAMA_MODEL_CODE") ?? "gemma3n:e2b";
 
 const modelsConf: LangModelConfig = {
   small: {

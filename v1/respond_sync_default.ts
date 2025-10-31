@@ -1,8 +1,7 @@
-import { Context, Hono, HonoRequest } from "@hono/hono";
+import { Context, Hono } from "@hono/hono";
 import { validator } from "@hono/hono/validator";
 import * as v from "@badrap/valita";
 import modelsConf from "../models.conf.ts";
-import { HonoBase } from "@hono/hono/hono-base";
 
 const app = new Hono();
 

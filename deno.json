@@ -9,6 +9,7 @@
     "@gorhill/ubo-core": "npm:@gorhill/ubo-core@^0.1.30",
     "@hono/hono": "jsr:@hono/hono@^4.8.4",
     "@mozilla/readability": "npm:@mozilla/readability@^0.6.0",
-    "@std/assert": "jsr:@std/assert@1"
+    "@std/assert": "jsr:@std/assert@1",
+    "stopword": "npm:stopword@^3.1.5"
   }
 }

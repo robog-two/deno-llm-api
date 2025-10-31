@@ -15,7 +15,9 @@
     "jsr:@std/path@^1.1.1": "1.1.1",
     "npm:@gorhill/ubo-core@~0.1.30": "0.1.30",
     "npm:@mozilla/readability@0.6": "0.6.0",
-    "npm:@types/node@*": "22.15.15"
+    "npm:@types/node@*": "22.15.15",
+    "npm:stopword@*": "3.1.5",
+    "npm:stopword@^3.1.5": "3.1.5"
   },
   "jsr": {
     "@b-fuze/deno-dom@0.1.56": {
@@ -96,6 +98,9 @@
         "undici-types"
       ]
     },
+    "stopword@3.1.5": {
+      "integrity": "sha512-OgLYGVFCNa430WOrj9tYZhQge5yg6vd6JsKredveAqEhdLVQkfrpnQIGjx0L9lLqzL4Kq4J8yNTcfQR/MpBwhg=="
+    },
     "undici-types@6.21.0": {
       "integrity": "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="
     }
@@ -107,7 +112,8 @@
       "jsr:@hono/hono@^4.8.4",
       "jsr:@std/assert@1",
       "npm:@gorhill/ubo-core@~0.1.30",
-      "npm:@mozilla/readability@0.6"
+      "npm:@mozilla/readability@0.6",
+      "npm:stopword@^3.1.5"
     ]
   }
 }

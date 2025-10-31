@@ -3,6 +3,7 @@ import { cors } from "@hono/hono/cors";
 import { secureHeaders } from "@hono/hono/secure-headers";
 import { logger } from "@hono/hono/logger";
 import { trimTrailingSlash } from "@hono/hono/trailing-slash";
+import { showRoutes } from "@hono/hono/dev";
 import v1 from "./v1/respond_sync_default.ts";
 import v2 from "./v2/v2.ts";
 import {
@@ -29,6 +30,10 @@ app.get("/", (c) => {
 app.post("/respond", validateWith(completionSchema), respondSyncRoute);
 app.route("/api/v1", v1);
 app.route("/api/v2", v2);
+
+showRoutes(app, {
+  verbose: true,
+});
 
 // Serve the app!
 Deno.serve(app.fetch);
