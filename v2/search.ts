@@ -102,6 +102,41 @@ async function internetSearch(query: string): Promise<Array<SearchResult>> {
 }
 
 // Helper function that performs three searches simultaneously
+async function getSearchQueries(question: string): Promise<string[]> {
+  const model = modelsConf.special.get("searchRephrase");
+  if (!model) {
+    throw new Error("searchRephrase model not configured");
+  }
+  const response = await fetch(
+    Deno.env.get("OLLAMA_ENDPOINT") + "/api/chat",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: model.name,
+        stream: false,
+        messages: [
+          {
+            "role": "system",
+            "content": model.prompt,
+          },
+          {
+            role: "user",
+            content: question,
+          },
+        ],
+      }),
+    },
+  );
+
+  const json = await response.json();
+  const content = json.message.content;
+  return content.split("\n")
+    .filter((s: string) => /^\d+\.\s*/.test(s)) // Filter for lines starting with "1.", "2.", etc.
+    .map((s: string) => s.replace(/^\d+\.\s*/, "").trim());
+}
 
 app.post("/", async (c) => {
   // Write a program and deliver it in chunks
@@ -124,9 +159,16 @@ app.post("/", async (c) => {
   ).then((res) => res.json());
 
   // Turn the natural language question into keywords
-  const listOfSources = await internetSearch(
-    removeStopwords(question.split(" ")).join(" "),
-  );
+  const searchQueries = await getSearchQueries(question);
+  console.log(searchQueries);
+
+  // Perform searches with a delay between each
+  const searchResults = [];
+  for (const query of searchQueries) {
+    searchResults.push(await internetSearch(query));
+    await new Promise((resolve) => setTimeout(resolve, 250)); // 250ms delay
+  }
+  const listOfSources = searchResults.flat();
 
   // Convert links into text
   const allSourcesText = (await Promise.all( // Kind of unbeleivable this just works! Shoutout to mozilla for making a brilliant article parser
@@ -192,7 +234,7 @@ app.post("/", async (c) => {
   Take all of the chunks, find embeddings for them, measure the distance between that and the query,
   then sort the chunks by that distance, and take the top three most similar chunks.
   */
-  const topThreeChunks = (await Promise.all(sourceChunks.map((chunk) =>
+  const topNChunks = (await Promise.all(sourceChunks.map((chunk) =>
     (async () => {
       const embedding = await fetch(
         Deno.env.get("OLLAMA_ENDPOINT") + "/api/embed",
@@ -220,9 +262,9 @@ app.post("/", async (c) => {
     })()
   ))).toSorted((a, b) =>
     a.distance - b.distance
-  ).map((packed) => packed.chunk).slice(0, 5);
+  ).map((packed) => packed.chunk).slice(0, 15);
 
-  return c.json(topThreeChunks);
+  return c.json(topNChunks);
 });
 
 export default app;

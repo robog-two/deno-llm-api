@@ -23,7 +23,7 @@ function p(prompt: string): string {
 }
 
 const defaultSmall = Deno.env.get("OLLAMA_MODEL_SMALL") ?? "gemma3n:e2b";
-const defaultLarge = Deno.env.get("OLLAMA_MODEL_BIG") ?? "gemma3n:e2b";
+const defaultLarge = Deno.env.get("OLLAMA_MODEL_BIG") ?? "gemma3n:e4b";
 const defaultCode = Deno.env.get("OLLAMA_MODEL_CODE") ?? "gemma3n:e2b";
 
 const modelsConf: LangModelConfig = {
@@ -43,12 +43,17 @@ const modelsConf: LangModelConfig = {
     think: true,
   },
   embedding: {
-    name: "granite-embedding:30m",
+    name: "granite-embedding:278m",
   },
   special: new Map(Object.entries({
     searchRephrase: { // Rephrases one search into three different searches
-      name: defaultLarge,
+      name: defaultSmall,
       prompt: p("search_rephrase"),
+      think: false,
+    },
+    citationAgent: { // Generates responses with citations
+      name: defaultLarge,
+      prompt: p("citation_agent"),
       think: false,
     },
   })),
