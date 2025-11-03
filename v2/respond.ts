@@ -3,6 +3,7 @@ import { validator } from "@hono/hono/validator";
 import { streamText } from "@hono/hono/streaming";
 import * as v from "@badrap/valita";
 import modelsConf from "../models.conf.ts";
+import { SourceChunk } from "./search.ts";
 
 const app = new Hono();
 
@@ -35,7 +36,7 @@ app.post(
   async (c: Context) => {
     const inputJson = await c.req.json();
 
-    const searchResults = await (await fetch(
+    const searchResults: SourceChunk[] = await (await fetch(
       "http://localhost:8000/api/v2/search",
       {
         method: "POST",
@@ -48,16 +49,36 @@ app.post(
       },
     )).json();
 
-    const searchPrompt =
-      "The following information was collected to assist you with your response. Please quote information directly where relevant and cite the source it came from.\n" +
-      (
-        searchResults.map((result: { text: string; link: string }) =>
-          '\nSource snippet: "' + result.text + '"' +
-          "Source URL: " + result.link + "\n"
-        )
-      );
+    const citationModel = modelsConf.special.get("citationAgent");
+    if (!citationModel) {
+      throw new Error("citationAgent model not configured");
+    }
+
+    // Group chunks by link
+    const sourcesByLink = new Map<string, SourceChunk[]>();
+    for (const chunk of searchResults) {
+      if (!sourcesByLink.has(chunk.link.toString())) {
+        sourcesByLink.set(chunk.link.toString(), []);
+      }
+      sourcesByLink.get(chunk.link.toString())!.push(chunk);
+    }
+
+    let citationMap = "";
+    let sourceCounter = 1;
+    for (const [link, chunks] of sourcesByLink.entries()) {
+      for (const chunk of chunks) {
+        citationMap += `"${chunk.text}"[${sourceCounter}] `;
+      }
+      citationMap += `${link}\n`;
+      sourceCounter++;
+    }
 
     return streamText(c, async (stream) => {
+      // First, stream the source chunks
+      for (const chunk of searchResults) {
+        await stream.write(JSON.stringify(chunk) + "\n");
+      }
+
       const abortController = new AbortController();
       stream.onAbort(() => {
         // Cancel the request to Ollama if the client disconnects
@@ -73,13 +94,13 @@ app.post(
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: model.name,
-            think: model.think,
+            model: citationModel.name,
+            think: citationModel.think,
             stream: true,
             messages: [
               {
                 "role": "system",
-                "content": model.prompt + "\n\n" + searchPrompt,
+                "content": citationModel.prompt + "\n\n" + citationMap,
               },
               {
                 role: "user",

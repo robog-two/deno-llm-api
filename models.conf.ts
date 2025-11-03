@@ -51,6 +51,11 @@ const modelsConf: LangModelConfig = {
       prompt: p("search_rephrase"),
       think: false,
     },
+    citationAgent: { // Generates responses with citations
+      name: defaultSmall,
+      prompt: p("citation_agent"),
+      think: false,
+    }
   })),
 };
 
