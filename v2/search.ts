@@ -160,6 +160,7 @@ app.post("/", async (c) => {
 
   // Turn the natural language question into keywords
   const searchQueries = await getSearchQueries(question);
+  console.log(searchQueries);
 
   // Perform searches with a delay between each
   const searchResults = [];
@@ -233,7 +234,7 @@ app.post("/", async (c) => {
   Take all of the chunks, find embeddings for them, measure the distance between that and the query,
   then sort the chunks by that distance, and take the top three most similar chunks.
   */
-  const topThreeChunks = (await Promise.all(sourceChunks.map((chunk) =>
+  const topNChunks = (await Promise.all(sourceChunks.map((chunk) =>
     (async () => {
       const embedding = await fetch(
         Deno.env.get("OLLAMA_ENDPOINT") + "/api/embed",
@@ -261,9 +262,9 @@ app.post("/", async (c) => {
     })()
   ))).toSorted((a, b) =>
     a.distance - b.distance
-  ).map((packed) => packed.chunk).slice(0, 5);
+  ).map((packed) => packed.chunk).slice(0, 15);
 
-  return c.json(topThreeChunks);
+  return c.json(topNChunks);
 });
 
 export default app;
