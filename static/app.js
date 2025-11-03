@@ -53,6 +53,17 @@ form.addEventListener('submit', async (e) => {
                 const source = JSON.parse(line);
                 if (source.link) {
                     const container = document.createElement('div');
+                    container.style.display = 'flex';
+                    container.style.alignItems = 'center';
+                    container.style.marginBottom = '10px';
+
+                    const favicon = document.createElement('img');
+                    favicon.src = `/api/v2/favicon?url=${encodeURIComponent(source.link)}`;
+                    favicon.onerror = () => { favicon.src = '/static/favicon_not_found.png'; };
+                    favicon.style.width = '16px';
+                    favicon.style.height = '16px';
+                    favicon.style.marginRight = '8px';
+
                     const link = document.createElement('a');
                     link.href = source.link;
                     link.target = '_blank';
@@ -62,8 +73,12 @@ form.addEventListener('submit', async (e) => {
                     text.style.whiteSpace = 'pre-wrap';
                     text.textContent = source.text;
 
-                    container.appendChild(link);
-                    container.appendChild(text);
+                    const sourceInfo = document.createElement('div');
+                    sourceInfo.appendChild(link);
+                    sourceInfo.appendChild(text);
+
+                    container.appendChild(favicon);
+                    container.appendChild(sourceInfo);
                     sourcesDiv.appendChild(container);
                 } else {
                     // It's valid JSON, but not a source. Assume response starts here.

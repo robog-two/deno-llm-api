@@ -1,9 +1,9 @@
 import { DOMParser } from "@b-fuze/deno-dom";
 import { Hono } from "@hono/hono";
 import modelsConf from "../models.conf.ts";
-import { StaticNetFilteringEngine } from "@gorhill/ubo-core";
 import { Readability } from "@mozilla/readability";
 import { removeStopwords } from "npm:stopword";
+import { isBlocked } from "./filtering.ts";
 
 /*
 The search feature needs to do the following:
@@ -48,23 +48,6 @@ function sqrVecDistance(a: EmbedVector, b: EmbedVector) {
   return totalDistance;
 }
 
-// Bad website blocking and filtering code
-const snfe = await StaticNetFilteringEngine.create();
-await snfe.useLists([
-  fetch("https://web.archive.org/web/20250327180212if_/https://big.oisd.nl/")
-    .then((r) => r.text()).then((raw) => ({
-      name: "oisd-big",
-      raw,
-    })),
-  fetch("https://web.archive.org/web/20250327180212if_/https://nsfw.oisd.nl/")
-    .then((r) => r.text()).then((raw) => ({
-      name: "oisd-nsfw",
-      raw,
-    })),
-]);
-
-// Simple inline logging for debugging purposes (only used within this file)
-
 // This web scraping function was written with generative AI.
 async function internetSearch(query: string): Promise<Array<SearchResult>> {
   const body = new URLSearchParams({ q: query, b: "" });
@@ -93,7 +76,7 @@ async function internetSearch(query: string): Promise<Array<SearchResult>> {
     const link = linkEl?.getAttribute("href") ?? null;
     const descEl = block.querySelector(".result__snippet");
     const description = (descEl?.textContent ?? "").trim();
-    if (link) {
+    if (link && !isBlocked(link)) {
       results.push({ link: new URL(link), description });
     }
   }
