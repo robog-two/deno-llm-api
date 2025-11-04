@@ -3,6 +3,7 @@ import { Hono } from "@hono/hono";
 import modelsConf from "../models.conf.ts";
 import { Readability } from "@mozilla/readability";
 import { isBlocked } from "./filtering.ts";
+import { chat, embed } from "./llm.ts";
 
 /*
 The search feature needs to do the following:
@@ -89,29 +90,24 @@ async function getSearchQueries(question: string): Promise<string[]> {
   if (!model) {
     throw new Error("searchRephrase model not configured");
   }
-  const response = await fetch(
-    Deno.env.get("OLLAMA_ENDPOINT") + "/api/chat",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+  const response = await chat(
+    model,
+    [
+      {
+        "role": "system",
+        "content": model.prompt,
       },
-      body: JSON.stringify({
-        model: model.name,
-        stream: false,
-        messages: [
-          {
-            "role": "system",
-            "content": model.prompt,
-          },
-          {
-            role: "user",
-            content: question,
-          },
-        ],
-      }),
-    },
+      {
+        role: "user",
+        content: question,
+      },
+    ],
+    false,
   );
+
+  if (!response) {
+    throw new Error("Could not reach LLM API.");
+  }
 
   const json = await response.json();
   const content = json.message.content;
@@ -126,19 +122,7 @@ app.post("/", async (c) => {
   const question: string = requestJSON.question;
 
   // Request embedding for the query, but we will use it later so don't await
-  const queryEmbeddingPromise = fetch(
-    Deno.env.get("OLLAMA_ENDPOINT") + "/api/embed",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: modelsConf.embedding.name,
-        input: question,
-      }),
-    },
-  ).then((res) => res.json());
+  const queryEmbeddingPromise = embed(modelsConf.embedding, question).then((res) => res?.json());
 
   // Turn the natural language question into keywords
   const searchQueries = await getSearchQueries(question);
@@ -220,21 +204,12 @@ app.post("/", async (c) => {
   */
   const topNChunks = (await Promise.all(sourceChunks.map((chunk) =>
     (async () => {
-      const embedding = await fetch(
-        Deno.env.get("OLLAMA_ENDPOINT") + "/api/embed",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: modelsConf.embedding.name,
-            input: chunk.text,
-          }),
-        },
-      ).then((res) =>
-        res.json()
-      ).then((resJSON) => resJSON.embeddings[0] as EmbedVector);
+      const embeddingResponse = await embed(modelsConf.embedding, chunk.text);
+      if (!embeddingResponse) {
+        throw new Error("Could not reach LLM API.");
+      }
+      const embedding = (await embeddingResponse.json()).embeddings[0] as EmbedVector;
+
 
       const distance = sqrVecDistance(queryEmbedding, embedding);
       console.log(distance, chunk.link.host);

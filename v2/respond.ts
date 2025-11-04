@@ -4,10 +4,9 @@ import { streamText } from "@hono/hono/streaming";
 import * as v from "@badrap/valita";
 import modelsConf from "../models.conf.ts";
 import { SourceChunk } from "./search.ts";
+import { chat } from "./llm.ts";
 
 const app = new Hono();
-
-const model = modelsConf.small;
 
 // Validation primitives
 export const searchRespondSchema = v.object({
@@ -81,40 +80,35 @@ app.post(
 
       const abortController = new AbortController();
       stream.onAbort(() => {
-        // Cancel the request to Ollama if the client disconnects
+        // Cancel the request to the LLM if the client disconnects
         abortController.abort();
       });
 
-      const response = await fetch(
-        Deno.env.get("OLLAMA_ENDPOINT") + "/api/chat",
-        {
-          signal: abortController.signal,
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+      const response = await chat(
+        citationModel,
+        [
+          {
+            "role": "system",
+            "content": citationModel.prompt + "\n\n" + citationMap,
           },
-          body: JSON.stringify({
-            model: citationModel.name,
-            think: citationModel.think,
-            stream: true,
-            messages: [
-              {
-                "role": "system",
-                "content": citationModel.prompt + "\n\n" + citationMap,
-              },
-              {
-                role: "user",
-                content: inputJson.question,
-              },
-            ],
-          }),
-        },
+          {
+            role: "user",
+            content: inputJson.question,
+          },
+        ],
+        true,
+        abortController.signal,
       );
+
+      if (!response) {
+        await stream.write("Could not reach LLM API.");
+        return;
+      }
 
       if (!response.ok) {
         console.log(response.status);
         console.log(await response.text());
-        await stream.write("Could not reach Ollama API.");
+        await stream.write("Could not reach LLM API.");
         return;
       }
 
@@ -132,7 +126,7 @@ app.post(
         }
       } else {
         await stream.write(
-          "Response from Ollama had no body and was not streamable.",
+          "Response from LLM had no body and was not streamable.",
         );
         return;
       }
