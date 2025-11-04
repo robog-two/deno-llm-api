@@ -1,21 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Respond with Search</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-</head>
-<body>
+    <style>
+      html {
+        font-family: sans-serif;
+      }
+      h1 {
+        font-size: 0.9em;
+      }
+      h2 {
+        font-size: 0.8em;
+      }
+      #sources {
+        font-size: 0.7em;
+      }
+    </style>
+  </head>
+  <body>
     <h1>Ask a question</h1>
     <form id="search-form">
-        <input type="text" id="question" placeholder="Enter your question">
-        <button type="submit">Submit</button>
+      <input type="text" id="question" placeholder="Enter your question">
+      <button type="submit">Submit</button>
     </form>
-    <h2>Sources</h2>
-    <div id="sources"></div>
-    <h2>Response</h2>
-    <div id="response" style="white-space: pre-wrap;"></div>
+    <aside
+      style="width: 189px; float: right; border-left: 1px dotted black; padding: 5px"
+    >
+      <h2>Sources</h2>
+      <div
+        id="sources"
+      >
+      </div>
+    </aside>
+    <section style="width: calc(100% - 200px); float: left">
+      <h2>Response</h2>
+      <div id="response" style="white-space: pre-wrap"></div>
+    </section>
     <script src="/static/app.js"></script>
-</body>
+  </body>
 </html>
