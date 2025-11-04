@@ -7,8 +7,6 @@ import { SourceChunk } from "./search.ts";
 
 const app = new Hono();
 
-const model = modelsConf.small;
-
 // Validation primitives
 export const searchRespondSchema = v.object({
   question: v.string(),
@@ -85,8 +83,9 @@ app.post(
         abortController.abort();
       });
 
+      // llama.cpp uses OpenAI-compatible /v1/chat/completions endpoint
       const response = await fetch(
-        Deno.env.get("OLLAMA_ENDPOINT") + "/api/chat",
+        citationModel.endpoint + "/v1/chat/completions",
         {
           signal: abortController.signal,
           method: "POST",
@@ -94,8 +93,6 @@ app.post(
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: citationModel.name,
-            think: citationModel.think,
             stream: true,
             messages: [
               {
@@ -114,25 +111,41 @@ app.post(
       if (!response.ok) {
         console.log(response.status);
         console.log(await response.text());
-        await stream.write("Could not reach Ollama API.");
+        await stream.write("Could not reach llama.cpp API.");
         return;
       }
 
       const llmStream = response.body?.pipeThrough(new TextDecoderStream());
 
       if (llmStream) {
+        let buffer = "";
         for await (const part of llmStream) {
-          try {
-            const partJSON = JSON.parse(part);
-            const chunk = partJSON.message.content;
-            await stream.write(chunk);
-          } catch (e) {
-            console.log(e);
+          buffer += part;
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || ""; // Keep the last incomplete line in buffer
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6).trim();
+              if (data === "[DONE]") {
+                continue;
+              }
+              try {
+                const partJSON = JSON.parse(data);
+                // OpenAI streaming format: choices[0].delta.content
+                const chunk = partJSON.choices?.[0]?.delta?.content || "";
+                if (chunk) {
+                  await stream.write(chunk);
+                }
+              } catch (e) {
+                console.log("Error parsing SSE chunk:", e);
+              }
+            }
           }
         }
       } else {
         await stream.write(
-          "Response from Ollama had no body and was not streamable.",
+          "Response from llama.cpp had no body and was not streamable.",
         );
         return;
       }
