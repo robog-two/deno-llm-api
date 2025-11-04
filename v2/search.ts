@@ -3,6 +3,7 @@ import { Hono } from "@hono/hono";
 import modelsConf from "../models.conf.ts";
 import { Readability } from "@mozilla/readability";
 import { isBlocked } from "./filtering.ts";
+import { removeStopwords } from "stopword";
 
 /*
 The search feature needs to do the following:
@@ -99,45 +100,6 @@ async function internetSearch(query: string): Promise<Array<string>> {
   return results;
 }
 
-// Helper function that performs three searches simultaneously
-async function getSearchQueries(question: string): Promise<string[]> {
-  const model = modelsConf.special.get("searchRephrase");
-  if (!model) {
-    throw new Error("searchRephrase model not configured");
-  }
-  // llama.cpp uses OpenAI-compatible /v1/chat/completions endpoint
-  const response = await fetch(
-    model.endpoint + "/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: model.model,
-        stream: false,
-        messages: [
-          {
-            "role": "system",
-            "content": model.prompt,
-          },
-          {
-            role: "user",
-            content: question,
-          },
-        ],
-      }),
-    },
-  );
-
-  const json = await response.json();
-  // OpenAI-compatible response format: choices[0].message.content
-  const content = json.choices[0].message.content;
-  return content.split("\n")
-    .filter((s: string) => /^\d+\.\s*/.test(s)) // Filter for lines starting with "1.", "2.", etc.
-    .map((s: string) => s.replace(/^\d+\.\s*/, "").trim());
-}
-
 app.post("/", async (c) => {
   console.time("search");
   // Write a program and deliver it in chunks
@@ -159,21 +121,14 @@ app.post("/", async (c) => {
     },
   ).then((res) => res.json());
 
-
   console.time("search-disambiguate");
-  // Turn the natural language question into keywords
-  const searchQueries = await getSearchQueries(question);
-  console.log(searchQueries);
-  console.timeEnd("search-disambiguate");
-
   console.time("search-fetch");
   // Perform searches with a delay between each
   const searchResults = new Set<string>();
-  for (const query of searchQueries) {
-    (await internetSearch(query)).forEach((result) => {
+  (await internetSearch(removeStopwords(question.split(" ")).join(" ")))
+    .forEach((result) => {
       searchResults.add(result);
     });
-  }
   const listOfSources = Array.from(searchResults).map((linkStr) =>
     new URL(linkStr)
   );
