@@ -2,18 +2,18 @@
   "version": "5",
   "specifiers": {
     "jsr:@b-fuze/deno-dom@~0.1.56": "0.1.56",
-    "jsr:@badrap/valita@~0.4.5": "0.4.6",
+    "jsr:@badrap/valita@~0.4.6": "0.4.6",
     "jsr:@denosaurs/plug@1.1.0": "1.1.0",
-    "jsr:@hono/hono@*": "4.9.0",
-    "jsr:@hono/hono@^4.8.4": "4.9.0",
-    "jsr:@std/assert@1": "1.0.13",
+    "jsr:@hono/hono@^4.10.4": "4.10.4",
+    "jsr:@std/assert@^1.0.15": "1.0.15",
     "jsr:@std/encoding@1": "1.0.10",
     "jsr:@std/fmt@1": "1.0.8",
     "jsr:@std/fs@1": "1.0.19",
-    "jsr:@std/internal@^1.0.6": "1.0.10",
-    "jsr:@std/internal@^1.0.9": "1.0.10",
-    "jsr:@std/path@1": "1.1.1",
-    "jsr:@std/path@^1.1.1": "1.1.1",
+    "jsr:@std/internal@^1.0.10": "1.0.12",
+    "jsr:@std/internal@^1.0.12": "1.0.12",
+    "jsr:@std/internal@^1.0.9": "1.0.12",
+    "jsr:@std/path@1": "1.1.2",
+    "jsr:@std/path@^1.1.1": "1.1.2",
     "npm:@gorhill/ubo-core@~0.1.30": "0.1.30",
     "npm:@mozilla/readability@0.6": "0.6.0",
     "npm:@types/node@*": "22.15.15",
@@ -45,13 +45,13 @@
     "@hono/hono@4.8.4": {
       "integrity": "dabc0ea1185040fc1e89abfe29906d9e3dd425a4c40f903f9ead78c48917da06"
     },
-    "@hono/hono@4.9.0": {
-      "integrity": "49df671bca96af6ab7899ea5ec1f4776b43c4cf864e472affe847bed3bb6b9a1"
+    "@hono/hono@4.10.4": {
+      "integrity": "e54d00c4cf994e7ae297d7321793cf940656b9c5e934564c03ffc15499041b9e"
     },
-    "@std/assert@1.0.13": {
-      "integrity": "ae0d31e41919b12c656c742b22522c32fb26ed0cba32975cb0de2a273cb68b29",
+    "@std/assert@1.0.15": {
+      "integrity": "d64018e951dbdfab9777335ecdb000c0b4e3df036984083be219ce5941e4703b",
       "dependencies": [
-        "jsr:@std/internal@^1.0.6"
+        "jsr:@std/internal@^1.0.12"
       ]
     },
     "@std/encoding@1.0.7": {
@@ -73,16 +73,16 @@
     "@std/internal@1.0.9": {
       "integrity": "bdfb97f83e4db7a13e8faab26fb1958d1b80cc64366501af78a0aee151696eb8"
     },
-    "@std/internal@1.0.10": {
-      "integrity": "e3be62ce42cab0e177c27698e5d9800122f67b766a0bea6ca4867886cbde8cf7"
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
     },
     "@std/path@1.0.8": {
       "integrity": "548fa456bb6a04d3c1a1e7477986b6cffbce95102d0bb447c67c4ee70e0364be"
     },
-    "@std/path@1.1.1": {
-      "integrity": "fe00026bd3a7e6a27f73709b83c607798be40e20c81dde655ce34052fd82ec76",
+    "@std/path@1.1.2": {
+      "integrity": "c0b13b97dfe06546d5e16bf3966b1cadf92e1cc83e56ba5476ad8b498d9e3038",
       "dependencies": [
-        "jsr:@std/internal@^1.0.9"
+        "jsr:@std/internal@^1.0.10"
       ]
     }
   },
@@ -109,9 +109,9 @@
   "workspace": {
     "dependencies": [
       "jsr:@b-fuze/deno-dom@~0.1.56",
-      "jsr:@badrap/valita@~0.4.5",
-      "jsr:@hono/hono@^4.8.4",
-      "jsr:@std/assert@1",
+      "jsr:@badrap/valita@~0.4.6",
+      "jsr:@hono/hono@^4.10.4",
+      "jsr:@std/assert@^1.0.15",
       "npm:@gorhill/ubo-core@~0.1.30",
       "npm:@mozilla/readability@0.6",
       "npm:stopword@^3.1.5"

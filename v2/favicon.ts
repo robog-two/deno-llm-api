@@ -27,7 +27,7 @@ app.get(
   async (c) => {
     const { url } = c.req.valid("query");
     const urlObject = new URL(url);
-    const origin = urlObject.origin;
+    const origin = urlObject.host;
 
     if (isBlocked(origin)) {
       return c.text("URL is blocked", 403);

@@ -16,5 +16,8 @@ await snfe.useLists([
 ]);
 
 export function isBlocked(url: string | URL): boolean {
-  return snfe.findFor(url.toString()) !== undefined;
+  return snfe.matchRequest({
+    type: "document",
+    url: url.toString(),
+  }) !== 0;
 }
