@@ -8,7 +8,7 @@ const kv = await Deno.openKv();
 
 // Validation schema for the query parameter
 const faviconSchema = v.object({
-  url: v.string().url(),
+  url: v.string(),
 });
 
 app.get(
@@ -44,7 +44,7 @@ app.get(
 
 
     try {
-      const faviconUrl = new URL("/favicon.ico", origin).href;
+      const faviconUrl = `https://${origin}/favicon.ico`;
 
       // Fetch the favicon image and stream it back
       const faviconResponse = await fetch(faviconUrl);

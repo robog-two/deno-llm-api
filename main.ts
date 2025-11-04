@@ -1,10 +1,10 @@
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { secureHeaders } from "hono/secure-headers";
-import { logger } from "hono/logger";
-import { trimTrailingSlash } from "hono/trailing-slash";
-import { showRoutes } from "hono/dev";
-import { serveStatic } from "hono/deno";
+import { Hono } from "@hono/hono";
+import { cors } from "@hono/hono/cors";
+import { secureHeaders } from "@hono/hono/secure-headers";
+import { logger } from "@hono/hono/logger";
+import { trimTrailingSlash } from "@hono/hono/trailing-slash";
+import { showRoutes } from "@hono/hono/dev";
+import { serveStatic } from "@hono/hono/deno";
 import v1 from "./v1/respond_sync_default.ts";
 import v2 from "./v2/v2.ts";
 import {

@@ -43,7 +43,7 @@ const modelsConf: LangModelConfig = {
     think: true,
   },
   embedding: {
-    name: "granite-embedding:278m",
+    name: "granite-embedding:30m",
   },
   special: new Map(Object.entries({
     searchRephrase: { // Rephrases one search into three different searches

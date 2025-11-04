@@ -4,6 +4,7 @@
     "jsr:@b-fuze/deno-dom@~0.1.56": "0.1.56",
     "jsr:@badrap/valita@~0.4.5": "0.4.6",
     "jsr:@denosaurs/plug@1.1.0": "1.1.0",
+    "jsr:@hono/hono@*": "4.9.0",
     "jsr:@hono/hono@^4.8.4": "4.9.0",
     "jsr:@std/assert@1": "1.0.13",
     "jsr:@std/encoding@1": "1.0.10",
