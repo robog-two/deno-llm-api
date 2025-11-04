@@ -89,15 +89,16 @@ async function getSearchQueries(question: string): Promise<string[]> {
   if (!model) {
     throw new Error("searchRephrase model not configured");
   }
+  // llama.cpp uses OpenAI-compatible /v1/chat/completions endpoint
   const response = await fetch(
-    Deno.env.get("OLLAMA_ENDPOINT") + "/api/chat",
+    model.endpoint + "/v1/chat/completions",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: model.name,
+        model: model.model,
         stream: false,
         messages: [
           {
@@ -114,7 +115,8 @@ async function getSearchQueries(question: string): Promise<string[]> {
   );
 
   const json = await response.json();
-  const content = json.message.content;
+  // OpenAI-compatible response format: choices[0].message.content
+  const content = json.choices[0].message.content;
   return content.split("\n")
     .filter((s: string) => /^\d+\.\s*/.test(s)) // Filter for lines starting with "1.", "2.", etc.
     .map((s: string) => s.replace(/^\d+\.\s*/, "").trim());
@@ -126,16 +128,17 @@ app.post("/", async (c) => {
   const question: string = requestJSON.question;
 
   // Request embedding for the query, but we will use it later so don't await
+  // llama.cpp uses OpenAI-compatible /v1/embeddings endpoint with "input" field
   const queryEmbeddingPromise = fetch(
-    Deno.env.get("OLLAMA_ENDPOINT") + "/api/embed",
+    modelsConf.embedding.endpoint + "/v1/embeddings",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: modelsConf.embedding.name,
         input: question,
+        model: modelsConf.embedding.model,
       }),
     },
   ).then((res) => res.json());
@@ -211,42 +214,50 @@ app.post("/", async (c) => {
     }
   });
 
-  const queryEmbedding = (await queryEmbeddingPromise)
-    .embeddings[0] as EmbedVector;
+  // OpenAI-compatible response: data[0].embedding contains the vector
+  const queryEmbedding = (await queryEmbeddingPromise).data[0].embedding as EmbedVector;
 
   /*
   Take all of the chunks, find embeddings for them, measure the distance between that and the query,
   then sort the chunks by that distance, and take the top three most similar chunks.
-  */
-  const topNChunks = (await Promise.all(sourceChunks.map((chunk) =>
-    (async () => {
-      const embedding = await fetch(
-        Deno.env.get("OLLAMA_ENDPOINT") + "/api/embed",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: modelsConf.embedding.name,
-            input: chunk.text,
-          }),
-        },
-      ).then((res) =>
-        res.json()
-      ).then((resJSON) => resJSON.embeddings[0] as EmbedVector);
 
-      const distance = sqrVecDistance(queryEmbedding, embedding);
-      console.log(distance, chunk.link.host);
-      return {
-        chunk,
-        distance,
-        source: chunk.link,
-      };
-    })()
-  ))).toSorted((a, b) =>
-    a.distance - b.distance
-  ).map((packed) => packed.chunk).slice(0, 15);
+  Use batched embedding request: send all chunk texts in a single request to llama.cpp
+  */
+  const chunkTexts = sourceChunks.map((chunk) => chunk.text);
+
+  // Batch embedding request - send all texts at once
+  const embeddingsResponse = await fetch(
+    modelsConf.embedding.endpoint + "/v1/embeddings",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        input: chunkTexts,
+        model: modelsConf.embedding.model,
+      }),
+    },
+  );
+
+  const embeddingsData = await embeddingsResponse.json();
+
+  // Map embeddings back to chunks and calculate distances
+  const chunksWithDistances = sourceChunks.map((chunk, index) => {
+    const embedding = embeddingsData.data[index].embedding as EmbedVector;
+    const distance = sqrVecDistance(queryEmbedding, embedding);
+    console.log(distance, chunk.link.host);
+    return {
+      chunk,
+      distance,
+      source: chunk.link,
+    };
+  });
+
+  const topNChunks = chunksWithDistances
+    .toSorted((a, b) => a.distance - b.distance)
+    .map((packed) => packed.chunk)
+    .slice(0, 15);
 
   return c.json(topNChunks);
 });

@@ -1,17 +1,18 @@
-// OLLAMA_MODEL_SMALL=qwen3:0.6b
-// OLLAMA_MODEL_BIG=qwen3:1.5b
-// OLLAMA_MODEL_CODE=qwen2.5-coder-3b
+// Configuration for llama.cpp endpoints
+// LLAMACPP_LLM_MODEL can be used to override the default model name if needed
+// LLAMACPP_EMBEDDING_MODEL can be used to override the default embedding model name if needed
 
 export type LangModelConfig = {
   small: LangModel;
   large: LangModel;
   code: LangModel;
-  embedding: { name: string };
+  embedding: { endpoint: string; model: string };
   special: Map<string, LangModel>;
 };
 
 export type LangModel = {
-  name: string;
+  endpoint: string; // llama.cpp endpoint URL
+  model: string; // model name (for OpenAI-compatible API)
   prompt: string; // May be overriden
   think: boolean; // May NOT be overriden
 };
@@ -22,37 +23,47 @@ function p(prompt: string): string {
   );
 }
 
-const defaultSmall = Deno.env.get("OLLAMA_MODEL_SMALL") ?? "gemma3n:e2b";
-const defaultLarge = Deno.env.get("OLLAMA_MODEL_BIG") ?? "gemma3n:e4b";
-const defaultCode = Deno.env.get("OLLAMA_MODEL_CODE") ?? "gemma3n:e2b";
+// Get llama.cpp endpoints from environment
+const llmEndpoint = Deno.env.get("LLAMACPP_LLM_ENDPOINT") ?? "http://localhost:8002";
+const embeddingEndpoint = Deno.env.get("LLAMACPP_EMBEDDING_ENDPOINT") ?? "http://localhost:8001";
+
+// Model names (can be overridden via env vars, but llama.cpp typically doesn't require specific model names)
+const defaultModel = Deno.env.get("LLAMACPP_LLM_MODEL") ?? "llama-model";
+const defaultEmbeddingModel = Deno.env.get("LLAMACPP_EMBEDDING_MODEL") ?? "embedding-model";
 
 const modelsConf: LangModelConfig = {
   small: {
-    name: defaultSmall,
+    endpoint: llmEndpoint,
+    model: defaultModel,
     prompt: p("agent"),
     think: false,
   },
   large: {
-    name: defaultLarge,
+    endpoint: llmEndpoint,
+    model: defaultModel,
     prompt: p("agent"),
     think: true,
   },
   code: {
-    name: defaultCode,
+    endpoint: llmEndpoint,
+    model: defaultModel,
     prompt: p("code"),
     think: true,
   },
   embedding: {
-    name: "granite-embedding:30m",
+    endpoint: embeddingEndpoint,
+    model: defaultEmbeddingModel,
   },
   special: new Map(Object.entries({
     searchRephrase: { // Rephrases one search into three different searches
-      name: defaultSmall,
+      endpoint: llmEndpoint,
+      model: defaultModel,
       prompt: p("search_rephrase"),
       think: false,
     },
     citationAgent: { // Generates responses with citations
-      name: defaultLarge,
+      endpoint: llmEndpoint,
+      model: defaultModel,
       prompt: p("citation_agent"),
       think: false,
     },
