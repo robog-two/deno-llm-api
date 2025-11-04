@@ -7,8 +7,6 @@ import { SourceChunk } from "./search.ts";
 
 const app = new Hono();
 
-const model = modelsConf.small;
-
 // Validation primitives
 export const searchRespondSchema = v.object({
   question: v.string(),
@@ -95,7 +93,6 @@ app.post(
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: citationModel.model,
             stream: true,
             messages: [
               {

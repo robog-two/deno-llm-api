@@ -22,6 +22,22 @@ const app = new Hono();
 
 const userAgent = "Lynx/2.9.2 libwww-FM/2.14 SSL-MM/1.4";
 
+const fetchWithTimeout = (url: string | URL, timeout = 500) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  return fetch(url, {
+    headers: { "User-Agent": userAgent },
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeoutId));
+};
+
+const chunkArray = <T>(arr: T[], size: number): T[][] =>
+  Array.from(
+    { length: Math.ceil(arr.length / size) },
+    (_, i) => arr.slice(i * size, i * size + size),
+  );
+
 export type SearchResult = {
   link: URL;
   description: string;
@@ -123,6 +139,7 @@ async function getSearchQueries(question: string): Promise<string[]> {
 }
 
 app.post("/", async (c) => {
+  console.time("search");
   // Write a program and deliver it in chunks
   const requestJSON = await c.req.json();
   const question: string = requestJSON.question;
@@ -138,33 +155,35 @@ app.post("/", async (c) => {
       },
       body: JSON.stringify({
         input: question,
-        model: modelsConf.embedding.model,
       }),
     },
   ).then((res) => res.json());
 
+
+  console.time("search-disambiguate");
   // Turn the natural language question into keywords
   const searchQueries = await getSearchQueries(question);
   console.log(searchQueries);
+  console.timeEnd("search-disambiguate");
 
+  console.time("search-fetch");
   // Perform searches with a delay between each
   const searchResults = new Set<string>();
   for (const query of searchQueries) {
     (await internetSearch(query)).forEach((result) => {
       searchResults.add(result);
     });
-    await new Promise((resolve) => setTimeout(resolve, 250)); // 250ms delay
   }
-  const listOfSources = Array.from(searchResults).map((linkStr) => new URL(linkStr));
+  const listOfSources = Array.from(searchResults).map((linkStr) =>
+    new URL(linkStr)
+  );
 
   // Convert links into text
   const allSourcesText = (await Promise.all( // Kind of unbeleivable this just works! Shoutout to mozilla for making a brilliant article parser
     listOfSources.map((result): Promise<Source | undefined> => {
       return (async () => {
         try {
-          const html = await (await fetch(result, {
-            headers: { "User-Agent": userAgent },
-          })).text();
+          const html = await (await fetchWithTimeout(result)).text();
           const article = new Readability(
             new DOMParser().parseFromString(html, "text/html"),
           ).parse();
@@ -176,7 +195,8 @@ app.post("/", async (c) => {
             };
           }
           return undefined;
-        } catch (_) {
+        } catch (e) {
+          console.log(e);
           return undefined;
         }
       })(); // IIFE generates a promise so we can do Promise.all
@@ -187,12 +207,19 @@ app.post("/", async (c) => {
     // block sources that will put unecessary stress on embedding server with little payoff (like a textbook, for example)
     .filter((it) => it.fullText.length < 25000) as Source[];
 
+  console.timeEnd("search-fetch");
+
+  console.time("search-chop");
   // Convert text into chunks
   const sourceChunks: SourceChunk[] = [];
   allSourcesText.forEach((source) => {
     const { link, fullText } = source;
-    const characters = 600;
-    const overlap = 120;
+    const characters = 400;
+    const overlap = 54;
+
+    fullText.replaceAll("\n\n\n", "\n\n");
+    fullText.replaceAll("\t", " ");
+    fullText.replaceAll("  ", " ");
 
     /*
     Assuming we are chunking abcdefghi and overlap is 1 and characters is 2:
@@ -213,9 +240,12 @@ app.post("/", async (c) => {
       });
     }
   });
+  console.timeEnd("search-chop");
 
+  console.time("search-embed");
   // OpenAI-compatible response: data[0].embedding contains the vector
-  const queryEmbedding = (await queryEmbeddingPromise).data[0].embedding as EmbedVector;
+  const queryEmbedding = (await queryEmbeddingPromise).data[0]
+    .embedding as EmbedVector;
 
   /*
   Take all of the chunks, find embeddings for them, measure the distance between that and the query,
@@ -223,42 +253,51 @@ app.post("/", async (c) => {
 
   Use batched embedding request: send all chunk texts in a single request to llama.cpp
   */
-  const chunkTexts = sourceChunks.map((chunk) => chunk.text);
+  const allChunkTexts = chunkArray(sourceChunks.map((chunk) => chunk.text), 10);
+  let embeddingResponses = [];
 
-  // Batch embedding request - send all texts at once
-  const embeddingsResponse = await fetch(
-    modelsConf.embedding.endpoint + "/v1/embeddings",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        input: chunkTexts,
-        model: modelsConf.embedding.model,
-      }),
-    },
-  );
+  // Batch embedding request - batch 10 at a time
+  for (const chunkText of allChunkTexts) {
+    embeddingResponses.push(
+      await (await fetch(
+        modelsConf.embedding.endpoint + "/v1/embeddings",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            input: chunkText,
+          }),
+        },
+      )).json(),
+    );
+  }
 
-  const embeddingsData = await embeddingsResponse.json();
+  // Unpack the parallelized responses
+  // [[resp resp], [resp resp]] -> [resp resp resp resp]
+  embeddingResponses = embeddingResponses.flat().map((resp) => resp.data)
+    .flat();
 
   // Map embeddings back to chunks and calculate distances
   const chunksWithDistances = sourceChunks.map((chunk, index) => {
-    const embedding = embeddingsData.data[index].embedding as EmbedVector;
+    const embedding = embeddingResponses[index].embedding as EmbedVector;
     const distance = sqrVecDistance(queryEmbedding, embedding);
-    console.log(distance, chunk.link.host);
+    //console.log(distance, chunk.link.host);
     return {
       chunk,
       distance,
       source: chunk.link,
     };
   });
+  console.timeEnd("search-embed");
 
   const topNChunks = chunksWithDistances
     .toSorted((a, b) => a.distance - b.distance)
     .map((packed) => packed.chunk)
     .slice(0, 15);
 
+  console.timeEnd("search");
   return c.json(topNChunks);
 });
 
