@@ -27,7 +27,8 @@ function p(prompt: string): string {
 }
 
 const ollamaEndpoint = Deno.env.get("OLLAMA_ENDPOINT") ?? "http://localhost:11434";
-const llamacppEndpoint = Deno.env.get("LLAMACPP_ENDPOINT") ?? "http://llamacpp:8080";
+const llamacppEmbeddingEndpoint = Deno.env.get("LLAMACPP_EMBEDDING_ENDPOINT") ?? "http://llamacpp:8001";
+const llamacppGemmaEndpoint = Deno.env.get("LLAMACPP_GEMMA_ENDPOINT") ?? "http://llamacpp:8002";
 
 const defaultSmall = Deno.env.get("OLLAMA_MODEL_SMALL") ?? "gemma3n:e2b";
 const defaultLarge = Deno.env.get("OLLAMA_MODEL_BIG") ?? "gemma3n:e4b";
@@ -84,28 +85,28 @@ const llamacppModels: LangModelConfig = {
     small: {
       name: "google/gemma-3-1b-it",
       provider: "llamacpp",
-      endpoint: llamacppEndpoint,
+      endpoint: llamacppGemmaEndpoint,
       prompt: p("agent"),
       think: false,
     },
     large: {
       name: "google/gemma-3-1b-it",
       provider: "llamacpp",
-      endpoint: llamacppEndpoint,
+      endpoint: llamacppGemmaEndpoint,
       prompt: p("agent"),
       think: true,
     },
     code: {
       name: "google/gemma-3-1b-it",
       provider: "llamacpp",
-      endpoint: llamacppEndpoint,
+      endpoint: llamacppGemmaEndpoint,
       prompt: p("code"),
       think: true,
     },
     embedding: {
       name: "all-MiniLM-L6-v2",
       provider: "llamacpp",
-      endpoint: llamacppEndpoint,
+      endpoint: llamacppEmbeddingEndpoint,
       prompt: "",
       think: false,
     },
@@ -113,14 +114,14 @@ const llamacppModels: LangModelConfig = {
       searchRephrase: { // Rephrases one search into three different searches
         name: "google/gemma-3-1b-it",
         provider: "llamacpp",
-        endpoint: llamacppEndpoint,
+        endpoint: llamacppGemmaEndpoint,
         prompt: p("search_rephrase"),
         think: false,
       },
       citationAgent: { // Generates responses with citations
         name: "google/gemma-3-1b-it",
         provider: "llamacpp",
-        endpoint: llamacppEndpoint,
+        endpoint: llamacppGemmaEndpoint,
         prompt: p("citation_agent"),
         think: false,
       },
