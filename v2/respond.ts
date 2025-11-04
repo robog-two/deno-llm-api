@@ -2,7 +2,6 @@ import { Context, Hono } from "@hono/hono";
 import { validator } from "@hono/hono/validator";
 import { streamText } from "@hono/hono/streaming";
 import * as v from "@badrap/valita";
-import modelsConf from "../models.conf.ts";
 import { SourceChunk } from "./search.ts";
 import { chat } from "./llm.ts";
 
@@ -48,11 +47,6 @@ app.post(
       },
     )).json();
 
-    const citationModel = modelsConf.special.get("citationAgent");
-    if (!citationModel) {
-      throw new Error("citationAgent model not configured");
-    }
-
     // Group chunks by link
     const sourcesByLink = new Map<string, SourceChunk[]>();
     for (const chunk of searchResults) {
@@ -85,11 +79,11 @@ app.post(
       });
 
       const response = await chat(
-        citationModel,
+        "citationAgent",
         [
           {
             "role": "system",
-            "content": citationModel.prompt + "\n\n" + citationMap,
+            "content": citationMap,
           },
           {
             role: "user",

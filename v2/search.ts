@@ -1,6 +1,5 @@
 import { DOMParser } from "@b-fuze/deno-dom";
 import { Hono } from "@hono/hono";
-import modelsConf from "../models.conf.ts";
 import { Readability } from "@mozilla/readability";
 import { isBlocked } from "./filtering.ts";
 import { chat, embed } from "./llm.ts";
@@ -86,17 +85,9 @@ async function internetSearch(query: string): Promise<Array<string>> {
 
 // Helper function that performs three searches simultaneously
 async function getSearchQueries(question: string): Promise<string[]> {
-  const model = modelsConf.special.get("searchRephrase");
-  if (!model) {
-    throw new Error("searchRephrase model not configured");
-  }
   const response = await chat(
-    model,
+    "searchRephrase",
     [
-      {
-        "role": "system",
-        "content": model.prompt,
-      },
       {
         role: "user",
         content: question,
@@ -122,7 +113,7 @@ app.post("/", async (c) => {
   const question: string = requestJSON.question;
 
   // Request embedding for the query, but we will use it later so don't await
-  const queryEmbeddingPromise = embed(modelsConf.embedding, question).then((res) => res?.json());
+  const queryEmbeddingPromise = embed("embedding", question).then((res) => res?.json());
 
   // Turn the natural language question into keywords
   const searchQueries = await getSearchQueries(question);
@@ -204,7 +195,7 @@ app.post("/", async (c) => {
   */
   const topNChunks = (await Promise.all(sourceChunks.map((chunk) =>
     (async () => {
-      const embeddingResponse = await embed(modelsConf.embedding, chunk.text);
+      const embeddingResponse = await embed("embedding", chunk.text);
       if (!embeddingResponse) {
         throw new Error("Could not reach LLM API.");
       }
