@@ -1,9 +1,8 @@
 import { DOMParser } from "@b-fuze/deno-dom";
 import { Hono } from "@hono/hono";
 import modelsConf from "../models.conf.ts";
-import { StaticNetFilteringEngine } from "@gorhill/ubo-core";
 import { Readability } from "@mozilla/readability";
-import { removeStopwords } from "npm:stopword";
+import { isBlocked } from "./filtering.ts";
 
 /*
 The search feature needs to do the following:
@@ -48,25 +47,8 @@ function sqrVecDistance(a: EmbedVector, b: EmbedVector) {
   return totalDistance;
 }
 
-// Bad website blocking and filtering code
-const snfe = await StaticNetFilteringEngine.create();
-await snfe.useLists([
-  fetch("https://web.archive.org/web/20250327180212if_/https://big.oisd.nl/")
-    .then((r) => r.text()).then((raw) => ({
-      name: "oisd-big",
-      raw,
-    })),
-  fetch("https://web.archive.org/web/20250327180212if_/https://nsfw.oisd.nl/")
-    .then((r) => r.text()).then((raw) => ({
-      name: "oisd-nsfw",
-      raw,
-    })),
-]);
-
-// Simple inline logging for debugging purposes (only used within this file)
-
 // This web scraping function was written with generative AI.
-async function internetSearch(query: string): Promise<Array<SearchResult>> {
+async function internetSearch(query: string): Promise<Array<string>> {
   const body = new URLSearchParams({ q: query, b: "" });
   const response = await fetch("https://html.duckduckgo.com/html/", {
     method: "POST",
@@ -86,15 +68,15 @@ async function internetSearch(query: string): Promise<Array<SearchResult>> {
   if (!doc) {
     throw new Error("Failed to parse HTML with deno‑dom.");
   }
-  const results: Array<SearchResult> = [];
+  const results: Array<string> = [];
   const blocks = doc.querySelectorAll(".result");
   for (const block of blocks) {
     const linkEl = block.querySelector(".result__a");
     const link = linkEl?.getAttribute("href") ?? null;
-    const descEl = block.querySelector(".result__snippet");
-    const description = (descEl?.textContent ?? "").trim();
-    if (link) {
-      results.push({ link: new URL(link), description });
+    //const descEl = block.querySelector(".result__snippet");
+    //const description = (descEl?.textContent ?? "").trim();
+    if (link && !isBlocked(link)) {
+      results.push(link);
     }
   }
 
@@ -163,19 +145,21 @@ app.post("/", async (c) => {
   console.log(searchQueries);
 
   // Perform searches with a delay between each
-  const searchResults = [];
+  const searchResults = new Set<string>();
   for (const query of searchQueries) {
-    searchResults.push(await internetSearch(query));
+    (await internetSearch(query)).forEach((result) => {
+      searchResults.add(result);
+    });
     await new Promise((resolve) => setTimeout(resolve, 250)); // 250ms delay
   }
-  const listOfSources = searchResults.flat();
+  const listOfSources = Array.from(searchResults).map((linkStr) => new URL(linkStr));
 
   // Convert links into text
   const allSourcesText = (await Promise.all( // Kind of unbeleivable this just works! Shoutout to mozilla for making a brilliant article parser
     listOfSources.map((result): Promise<Source | undefined> => {
       return (async () => {
         try {
-          const html = await (await fetch(result.link, {
+          const html = await (await fetch(result, {
             headers: { "User-Agent": userAgent },
           })).text();
           const article = new Readability(
@@ -185,7 +169,7 @@ app.post("/", async (c) => {
           if (article && article.textContent) {
             return {
               fullText: article.textContent.replaceAll(/\n\n+/g, "\n\n"), //filter out long newlines which sometimes occur
-              link: result.link,
+              link: result,
             };
           }
           return undefined;
