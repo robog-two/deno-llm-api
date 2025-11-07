@@ -145,7 +145,9 @@ app.post("/", async (c) => {
 
           if (article && article.textContent) {
             return {
-              fullText: article.textContent.replaceAll(/\n\n+/g, "\n\n"), //filter out long newlines which sometimes occur
+              // Filter long newlines and un-embeddable characters
+              fullText: article.textContent.replaceAll(/\n\n+/g, "\n\n")
+                .replaceAll(/[^A-Za-z0-9\!\@\#\$\%\^\&\*\(\)\\.\,\<\>\/\\\:\;\"\'\]\[\{\}\~\`\-\_\=\+\|]/g, ""),
               link: result,
             };
           }
