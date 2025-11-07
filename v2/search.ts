@@ -145,9 +145,13 @@ app.post("/", async (c) => {
 
           if (article && article.textContent) {
             return {
-              // Filter long newlines and un-embeddable characters
+              // Filter long whitespace and un-embeddable characters
               fullText: article.textContent.replaceAll(/\n\n+/g, "\n\n")
-                .replaceAll(/[^A-Za-z0-9\!\@\#\$\%\^\&\*\(\)\\.\,\<\>\/\\\:\;\"\'\]\[\{\}\~\`\-\_\=\+\|]/g, ""),
+                .replaceAll(/\t\t+/g, "\t\t")
+                .replaceAll(
+                  /[^A-Za-z0-9\!\@\#\$\%\^\&\*\(\)\\.\,\<\>\/\\\:\;\"\'\]\[\{\}\~\`\-\_\=\+\| \n\t]/g,
+                  "",
+                ),
               link: result,
             };
           }
